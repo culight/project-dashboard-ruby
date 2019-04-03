@@ -25,7 +25,42 @@ def initGithub
 	request = Net::HTTP::Get.new(uri.request_uri)
 	request.basic_auth(config['github_uname'], config['github_passwd'])
 	
-	response = http.request(request)
+	# github connection try/catch block
+	begin
+    	response = http.request(request)
+	rescue
+		puts "Failed to connect to Github"
+		writeGithubErrorLog("Failed to connect to Github")
+		return {}
+	end
+	
+	# github authentiation fail/success block
+	if(response.code.to_i < 400)
+		writeGithubDataLog(response.body)
+		return JSON.parse(response.body)
+	else
+		puts "Github request failed with error #{response.code} : #{response.msg}"
+		writeGithubErrorLog(
+		  "Github request failed with error #{response.code} : #{response.msg}"
+		)
+		return {}
+	end
+end
+
+# write to github Log file
+def writeGithubDataLog(message)
+	time = Time.now.inspect
+	File.open('githubDataLog.txt', 'w') do |f2|
+		f2.puts "LogDate #{time} : #{message}"
+	end
+end
+
+# write to github Log file
+def writeGithubErrorLog(message)
+	time = Time.now.inspect
+	File.open('githubErrorLog.txt', 'w') do |f2|
+		f2.puts "LogDate #{time} : #{message}"
+	end
 end
 
 main
