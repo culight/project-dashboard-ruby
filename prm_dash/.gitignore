@@ -2,5 +2,5 @@
 history.yml
 
 .config.json
-.txt
+*.txt
 
