@@ -1,6 +1,6 @@
-require 'json'
 require 'uri'
 require 'net/https'
+require '../models/http_client.rb'
 
 # main dashboard that pulls data from github and jenkins every 5 mins
 def main
@@ -10,57 +10,31 @@ def main
 end
 
 def init
-	initGithub
+	config_file = File.read('../.config.json')
+	config = JSON.parse(config_file)
+	
+	initGithub(config)
+	#initJenkins(config)
+	
+	getProjects
 end
 
 # init github connection
-def initGithub
-	uri = URI.parse('https://indy-github.milliman.com/api/v3')
-	http = Net::HTTP.new(uri.host, uri.port)
-	http.use_ssl = true
+def initGithub(config)
+	$client_uri = 'https://indy-github.milliman.com/api/v3'
+	username = config['github_uname']
+	password = config['github_passwd']
 	
-	config_file = File.read('../.config.json')
-	config = JSON.parse(config_file)
+	$github_client = HTTP_CLIENT.new($client_uri, username, password)
+	$github_client.connect('Github')
+end
 
+def getProjects
+	uri = URI.parse("https://indy-github.milliman.com/api/v3/orgs/PRM/projects")
 	request = Net::HTTP::Get.new(uri.request_uri)
-	request.basic_auth(config['github_uname'], config['github_passwd'])
-	
-	# github connection try/catch block
-	begin
-    	response = http.request(request)
-	rescue
-		puts "Failed to connect to Github"
-		writeGithubErrorLog("Failed to connect to Github")
-		return {}
-	end
-	
-	# github authentiation fail/success block
-	if(response.code.to_i < 400)
-		writeGithubDataLog(response.body)
-		return JSON.parse(response.body)
-	else
-		puts "Github request failed with error #{response.code} : #{response.msg}"
-		writeGithubErrorLog(
-		  "Github request failed with error #{response.code} : #{response.msg}"
-		)
-		return {}
-	end
-end
-
-# write to github Log file
-def writeGithubDataLog(message)
-	time = Time.now.inspect
-	File.open('githubDataLog.txt', 'w') do |f2|
-		f2.puts "LogDate #{time} : #{message}"
-	end
-end
-
-# write to github Log file
-def writeGithubErrorLog(message)
-	time = Time.now.inspect
-	File.open('githubErrorLog.txt', 'w') do |f2|
-		f2.puts "LogDate #{time} : #{message}"
-	end
+	request['Accept'] = "application/vnd.github.inertia-preview+json"
+	response = $github_client.send_request(request,"Github")
+	puts response
 end
 
 main
