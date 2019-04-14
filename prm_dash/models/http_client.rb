@@ -59,7 +59,7 @@ class HTTP_CLIENT
 	# write to general log file
 	def writeDataLog(message, clientName)
 		time = Time.now.inspect
-		File.open("../logs/#{clientName}DataLog.txt", 'w') do |f2|
+		File.open("logs/#{clientName}DataLog.txt", 'w') do |f2|
 			f2.puts "LogDate #{time} : #{message}"
 		end
 	end
@@ -67,7 +67,7 @@ class HTTP_CLIENT
 	# write to error log file
 	def writeErrorLog(message, clientName)
 		time = Time.now.inspect
-		File.open("../logs/#{clientName}ErrorLog.txt", 'w') do |f2|
+		File.open("logs/#{clientName}ErrorLog.txt", 'w') do |f2|
 			f2.puts "LogDate #{time} : #{message}"
 		end
 	end

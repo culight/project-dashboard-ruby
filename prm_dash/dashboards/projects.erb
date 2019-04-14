@@ -1,0 +1,13 @@
+<% content_for :title do %>PRM Project Dash<% end %>
+<% projects=$projects %>
+
+<div class="gridster">
+  <ul>
+     <% for project in projects %>
+       <li data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+          <header class="fa fa-arrows drag-handle"></header>
+          <div data-id="project_<%= projects.index(project) %>" data-view="Text" data-title="title" data-text="text" data-moreinfo="moreinfo" onclick="location.href='https://github.com/Shopify/dashing/issues/36'"></div>
+       </li>
+     <% end %>
+  </ul>
+</div>
