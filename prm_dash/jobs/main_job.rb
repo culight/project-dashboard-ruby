@@ -2,37 +2,40 @@ require 'uri'
 require 'net/https'
 require File.expand_path("models/http_client.rb", Dir.pwd)
 
-
-	
-
-# main dashboard that pulls data from github and jenkins every 5 mins
 def main
+	$client_colormap = {}
 	$projects = [
 		{
-			'client_name': 'test_client_1',
-			'proj_name': 'test project',
-			'status': 'processing',
+			'client_name': '0273UNH',
+			'proj_name': 'Data_Thru_201903_M7',
+			'status': "Processing",
 			'type': 'issue'
 		},
 		{
-			'client_name': 'test_client_2',
-			'proj_name': 'test project',
+			'client_name': '0273WSP',
+			'proj_name': 'Data_Thru_201903_M7_Datamart',
 			'status': 'In Review',
 			'type': 'issue'
 		}
 	]
-	#init
-	# send new dashboard data every 5 minutes, start in 10s (some cushion room to read in config file)
-	SCHEDULER.every '1m', :first_in => '5s' do
-		#getProjects	
-		#getProjectTasks
+
+	SCHEDULER.every '20s', :first_in => '2s' do
+		$color = "%06x" % (rand * 0xffffff)
+		puts $color
+	
 		$projects.each_with_index do |project, index|
+			# get a unique color for each client
+			if !$client_colormap.key?(project[:client_name])
+				color = "%06x" % (rand * 0xffffff)
+				$client_colormap[project[:client_name]] =  color
+			end
 			send_event(
 				"project_#{index}", 
 				{
 					'title': project[:client_name],
 					'text': project[:proj_name],
-					'moreinfo': project[:status]
+					'moreinfo': project[:status],
+					'type': project[:type]
 				}
 			)
 		end
@@ -40,7 +43,7 @@ def main
 end
 
 def init
-	config_file = File.read('../.config.json')
+	config_file = File.read('.config.json')
 	config = JSON.parse(config_file)
 	
 	initGithub(config)
@@ -51,7 +54,6 @@ def initGithub(config)
 	client_uri = 'https://indy-github.milliman.com/api/v3'
 	username = config['github_uname']
 	token = config['github_pat']
-	
 	$github_client = HTTP_CLIENT.new(client_uri, username, token)
 	$github_client.connect('Github')
 end
@@ -64,23 +66,24 @@ def initJenkins(config)
 end
 
 def getProjects
-	proj_board_url = "https://indy-github.com/milliman.com/api/v3/projects/33/columns"
+	proj_board_url = "https://indy-github.milliman.com/api/v3/projects/33/columns"
+	proj_board_url = "https://indy-github.milliman.com/api/v3/projects/114/columns"
 	$projects = parseProjectData(proj_board_url)
 end
 
-def getProjectTasks
-	task_board_url = "https://indy-github.com/milliman.com/api/v3/projects/31/columns"
+def getProcoljectTasks
+	task_board_url = "https://indy-github.milliman.com/api/v3/projects/31/columns"
 	$tasks = parseProjectData(task_board_url)
 end
 
-def parseProjectData(board_url)
+def parseProjectData(url)
 	data = []
 	
-	uri = URI.parse(board_url)
+	uri = URI.parse(url)
 	request = Net::HTTP::Get.new(uri.request_uri)
 	request['Accept'] = "application/vnd.github.inertia-preview+json"
 	response = $github_client.send_request(request,"Github")
-
+	puts response
 	for i in 0..(response.size - 1)
 		column = response[i]
 		status = column['name']
