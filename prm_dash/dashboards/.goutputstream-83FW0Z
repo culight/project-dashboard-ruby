@@ -1,0 +1,54 @@
+<% content_for :title do %>PRM Project Dash<% end %>
+
+<div class="gridster">
+  <ul class="widget-list">
+     <li data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+       <div data-id="title_widget" data-view="Title" ></div>
+     </li>
+     <li class="jenkins-job" data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+       <div data-id="jenkins" data-view="JenkinsBuild" data-title="Build title" data-description="A little description of build" data-min="0" data-max="100"></div>
+     </li>
+     <li class="task" data-row="1" data-col="1" data-sizex="2" data-sizey="1" style="visibility: hidden;">
+       <div data-id="task_widget" data-view="Text" ></div>
+     </li>
+  </ul>
+</div>
+
+<script type='text/javascript'>
+  window.onload = function() {
+    projectData = JSON.parse(localStorage.getItem("currentProjectData"));
+    widgetList = document.getElementsByClassName("widget-list")[0];
+    
+    // create title widget
+    title = document.getElementsByClassName("title")[0];
+    subtitle = document.getElementsByClassName("subtitle")[0];
+    
+    document.getElementsByClassName("title_widget")[0].style["backgroundColor"] = "#" + projectData["color"];
+    title.innerHTML = projectData["client_name"];
+    subtitle.innerHTML = projectData["proj_name"];
+    
+    // create task widgets
+    tasks = projectData["tasks"]
+    task_container_template = document.getElementsByClassName("task")[0]
+    if (tasks.length > 0) { 
+      task_container = task_container_template.cloneNode(true);
+      
+      for (task in projectData["tasks"]) {
+        task_container.setAttribute("style", "visibility: visible;");
+        task_widget = task_container.firstElementChild
+ 
+        task_widget.children[0].innerHTML = tasks[task]["title"]
+        task_widget.children[1].innerHTML = tasks[task]["status"]
+        task_widget.children[4].innerHTML = tasks[task]["repo_name"]
+        
+        widgetList.appendChild(task_container);
+      }
+    }
+    
+    
+    // set jenkins widget
+    
+    widgetList.setAttribute("style", "background-color='';");
+
+  }
+</script>
