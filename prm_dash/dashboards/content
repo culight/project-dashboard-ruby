@@ -1,0 +1,33 @@
+
+                
+                                <li class="ci gs-w" data-row="2" data-col="1" data-sizex="1" data-sizey="1">
+                  <header class="fa fa-arrows drag-handle"></header>
+                  <div data-id="jenkins-widget" data-view="JenkinsBuild" data-description="<%= project[:proj_name] %>" data-lastBuilt="<%= job[:lastResult] %>" data-min="0" data-max="100" data-value="<%= job[:value] %>"</div>
+                </li>
+                
+ 
+            <% if project[1].key?(:details) %>
+              <% title = project[1][:details] %>
+              <li data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+                <header class="fa fa-arrows drag-handle"></header>
+                <div data-id="title_<%= projects.key(project) %>" data-title="title" style="background-color:#000000;" data-view="Text" onclick="projectClicked(this);"></div>
+              </li>
+            <% end %>
+
+            <% if project[1].key?(:tasks) %>
+              <% task = project[1][:tasks] %>
+              <% puts task%>
+              <li class="task gs-w" data-row="1" data-col="3" data-sizex="2" data-sizey="1">
+                <header class="fa fa-arrows drag-handle"></header>
+                <div data-id="task_widget" data-view="Text" data-title="<%= task[:title] %>" data-text="<%= task[:status] %>"></div>
+              </li>
+            <% end %>
+            <li class="task gs-w" data-row="1" data-col="3" data-sizex="2" data-sizey="1">
+              <header class="fa fa-arrows drag-handle"></header>
+              <div data-id="task_widget" data-view="Text" data-title="Test" data-text="its a test"></div>
+            </li>
+            <% if project[1].key?(:ci) %>
+              <% job = project[1][:ci] %>
+            <% end %>
+            
+        

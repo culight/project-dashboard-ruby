@@ -3,58 +3,37 @@ require 'http'
 require 'json'
 require 'time'
 
+$project_boards = {}
+$prod_project_map = {}
+$boardParamMap = {
+	'production': 33,
+	'onboarding': 31,
+	'analytics_dev': 29
+	#~ 'prod_mgmt': 92,
+	#~ 'ebm_dev': 89,
+	#~ 'inf_sec': 87,
+	#~ 'map': 76
+}
 
 def main
 	init 
-	buildProjectHash
+	mapProjectBoards
 	
 	SCHEDULER.every '5m', :first_in => '3m' do		
-		buildProjectHash
+		# send details for active run to view
+		#~ send_event(
+			#~ "title_#{index}", 
+			#~ {
+				#~ 'title': project[:client_name],
+				#~ 'text': project[:proj_name],
+				#~ 'moreinfo': project[:status],
+				#~ 'projectRepo': project[:repo_name]
+			#~ }
+		#~ )
 	end
 end
 
-def buildProjectHash
-	$projects = getProjects
-	projectTasks = getProjectTasks
-	
-	# retrieve active projects in production queue along with their associated tasks
-	$projects.each_with_index do |project, index|
-		project['tasks'] = []
-		project['ci'] = []
-		
-		# get a unique color for this project
-		project['color'] = "%06x" % (rand * 0xffffff)
-			
-		# get Github project tasks associated with this project
-		taskList = []
-		projectTasks.each_with_index do |task, index|
-			if task
-				if project[:repo_name] == task[:repo_name]
-					taskList << task
-				end
-			end
-			
-		end
-		project['tasks'] = taskList
 
-		# retrieve Jenkins data
-		job_name = 'PRM_Prod_ePHI_' + project[:client_name][0..6]
-		jenkinsData = getJenkinsData(job_name)
-		project['ci'] = [jenkinsData]
-		
-		# send details for active run to view
-		send_event(
-			"title_#{index}", 
-			{
-				'title': project[:client_name],
-				'text': project[:proj_name],
-				'moreinfo': project[:status],
-				'projectRepo': project[:repo_name]
-			}
-		)
-
-	end	
-end
 
 def buildProjectHashTest
 	$projects = [
@@ -70,7 +49,7 @@ def buildProjectHashTest
 		{:title=>"Grouper Update", :status=>"Priority", :type=>"issues", :repo_name=>"0273WSP_Commercial"},
 		{:title=>"Investigate Providers Who Turn Smokers --> Non-Smokers", :status=>"Priority", :type=>"issues", :repo_name=>"0273WOH_Medicaid"}
 	]
-	
+		
 	# retrieve active projects in production queue along with their associated tasks
 	$projects.each_with_index do |project, index|
 		project['tasks'] = []
@@ -121,7 +100,7 @@ def init
 	$github_auth = {
 		'client_uri': 'https://indy-github.milliman.com/api/v3',
 		'username': config['github_uname'],
-		'token': config['github_password'],
+		'token': config['github_pat'],
 		'preview_param': 'application/vnd.github.inertia-preview+json'
 	}
 	
@@ -132,33 +111,57 @@ def init
 	}
 end
 
-def getProjects
-	proj_board_url = "https://indy-github.milliman.com/api/v3/projects/33/columns"
-	$projects = parseProjectData(proj_board_url, 'production')
-end
+def buildProjectHash
 
-def getJenkinsData(job_name)
-	current_status = nil
-	last_status = current_status
-	build_info = get_json_for_job(job_name)
-	current_status = build_info["result"]
+
 	
-	if build_info["building"]
-		current_status = "BUILDING"
-		percent = get_completion_percentage(job_name)
-	end
+	mapProjectBoards('production')	
+	puts $prod_project_map
+	# retrieve active projects in production queue along with their associated tasks
+	#~ $projects.each_with_index do |project, index|
+		#~ project['tasks'] = []
+		#~ project['ci'] = []
+		
+		#~ # get a unique color for this project
+		#~ project['color'] = "%06x" % (rand * 0xffffff)
+			
+		#~ # get Github project tasks associated with this project
+		#~ taskList = []
+		#~ projectTasks.each_with_index do |task, index|
+			#~ if task
+				#~ if project[:repo_name] == task[:repo_name]
+					#~ taskList << task
+				#~ end
+			#~ end
+			
+		#~ end
+		#~ project['tasks'] = taskList
 
-	return {
-	  currentResult: current_status,
-	  lastResult: last_status,
-	  timestamp: build_info["timestamp"],
-	  value: percent
-	}
+		#~ # retrieve Jenkins data
+		#~ job_name = 'PRM_Prod_ePHI_' + project[:client_name][0..6]
+		#~ jenkinsData = getJenkinsData(job_name)
+		#~ project['ci'] = [jenkinsData]
+		
+		# send details for active run to view
+		send_event(
+			"title_#{index}", 
+			{
+				'title': project[:client_name],
+				'text': project[:proj_name],
+				'moreinfo': project[:status],
+				'projectRepo': project[:repo_name]
+			}
+		)
+
+	#~ end	
 end
 
-def getProjectTasks
-	task_board_url = "https://indy-github.milliman.com/api/v3/projects/31/columns"
-	$tasks = parseProjectData(task_board_url, 'onboarding')
+def mapProjectBoards
+	$boardParamMap.each do |boardType, boardParam|
+		proj_board_url = "https://indy-github.milliman.com/api/v3/projects/#{boardParam}/columns"
+		parseProjectData(proj_board_url, boardType)
+	end
+	$project_boards['prod_onb'] = $prod_project_map
 end
 
 def parseProjectData(url, boardType)
@@ -180,6 +183,7 @@ end
 
 def getBoardItems(column, status, boardType)
 	items = []
+	project_map = {}
 	
 	cards = getCards(column)
 	
@@ -195,16 +199,18 @@ def getBoardItems(column, status, boardType)
 		).get(card['content_url'])
 		
 		item = JSON.parse(response)
-
-		if boardType == 'production'
+		
+		if boardType == :production
 			if item['title']
 				title_segments = item['title'].split('-')
 			else
 				title_segments = ['xxxxx', 'Unknown Client']
 			end
-	
+			
+			# get card type
 			type = item['url'].split('/')[-2]
 			
+			# get repo name
 			index_marker = '[Client-Specific GitHub Repository]'
 			index_start = item['body'].rindex(index_marker) + index_marker.length
 			github_repo_url = ''
@@ -216,8 +222,7 @@ def getBoardItems(column, status, boardType)
 					github_repo_url.concat(c)
 				end
 			}
-
-			github_repo_name = github_repo_url[-3..-1] == '...' ? nil : github_repo_url.split('/')[-1]
+			repo_name = github_repo_url[-3..-1] == '...' ? nil : github_repo_url.split('/')[-1]
 			
 			if type == 'pull'
 				items[index] = {
@@ -225,7 +230,7 @@ def getBoardItems(column, status, boardType)
 					'proj_name': 'TBD',
 					'status': status,
 					'type': type,
-					'repo_name': github_repo_name,
+					'repo_name': repo_name,
 					'url': item['url']
 				}
 			elsif type == 'issues'
@@ -234,7 +239,7 @@ def getBoardItems(column, status, boardType)
 					'proj_name': title_segments[1].strip,
 					'status': status,
 					'type': type,
-					'repo_name': github_repo_name,
+					'repo_name': repo_name,
 					'url': item['url']
 				}
 			else
@@ -243,12 +248,11 @@ def getBoardItems(column, status, boardType)
 					'proj_name': nil,
 					'status': nil,
 					'type': nil,
-					'repo_name': github_repo_name,
+					'repo_name': repo_name,
 					'url': item['url']
 				}
-				puts item
-			end
-		elsif boardType == 'onboarding'
+			end		
+		elsif boardType == :onboarding
 			type = item['html_url'].split('/')[-2]
 			repo_name = item['repository_url'].split('/')[-1]
 			items[index] = {
@@ -257,9 +261,19 @@ def getBoardItems(column, status, boardType)
 				'type': type,
 				'repo_name': repo_name
 			}
+		else 
+			type = item['html_url'].split('/')[-2]
+			repo_name = item['repository_url'].split('/')[-1]
+			project_map[repo_name] = {
+				'title': item['title'],
+				'status': status,
+				'type': type,
+				'repo_name': repo_name
+			}
+			$project_boards[boardType] = project_map
 		end
 	end
-	
+
 	return items
 end
 
@@ -271,6 +285,25 @@ def getCards(column)
 	).get(column['cards_url'])
 	
 	return JSON.parse(response)
+end
+
+def getJenkinsData(job_name)
+	current_status = nil
+	last_status = current_status
+	build_info = get_json_for_job(job_name)
+	current_status = build_info["result"]
+	
+	if build_info["building"]
+		current_status = "BUILDING"
+		percent = get_completion_percentage(job_name)
+	end
+
+	return {
+	  currentResult: current_status,
+	  lastResult: last_status,
+	  timestamp: build_info["timestamp"],
+	  value: percent
+	}
 end
 
 def get_number_of_failing_tests(job_name)
