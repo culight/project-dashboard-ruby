@@ -194,6 +194,18 @@ h3 {
   right: 0;
 }
 
+.drag-handle {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  z-index: 99;
+  opacity: 0;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
 #save-gridster {
   display: none;
   position: fixed;

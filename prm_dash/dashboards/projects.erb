@@ -1,0 +1,175 @@
+<head>
+  <% content_for :title do %>PRM Project Dash<% end %>
+  <% projects=$projects %>
+  <% ready=$ready %>
+
+  <style>
+    .container {
+      width: 100%;
+      height: 500px;
+      margin-top: 7px;  
+      overflow-x: auto; 
+      //position: fixed;
+    }
+
+    .project {
+      width: 100%;
+      height: 100px;
+      height: 100%;
+      /*float: left;*/
+      /*display: inline;*/
+      display: none;
+      //position: fixed;
+      z-index: 10;
+    }
+    
+    .more-info {
+      position: static;
+    }
+    
+    .updated-at {
+      position: static;
+    }
+    
+    .project-repo {
+      position: static;
+    }
+    
+    #dotBigContainer {
+      width: 100%;
+      height: 28px;
+      bottom: 0px;
+      position: fixed;
+      z-index: 100;
+    }
+
+    #dotContainer {
+      height: 20px;
+      margin: 0 auto;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border: 1px solid #fff;
+      border-radius: 10px;
+      margin: 0px 5px;
+      float: left;
+    }
+    
+    .dot:hover {
+      background-color: #ff0000;
+    }
+
+    .activeDot {
+      background-color: #fff;
+    }
+  </style>
+
+  <script source="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+  <script type='text/javascript'>
+  
+    var numProjects = <%= projects.count %>;
+    
+    var scrollTime = 40;  // seconds
+    var refreshTime = 20; // minutes
+    var currProjectIndex = 0;
+   
+    $(document).ready(function(){
+        setupLayoutToFillScreen();
+        $("#project0").show();
+    });
+    
+    // transition project on interval
+    setInterval(function() {
+        var previousIndex = currProjectIndex;
+        currProjectIndex = (currProjectIndex+1)%numProjects;
+        
+        $('#project'+previousIndex).fadeOut(500, function() {
+          $('#project'+currProjectIndex).fadeIn(500);
+          $("#dot"+previousIndex).removeClass("activeDot");
+          $("#dot"+currProjectIndex).addClass("activeDot");
+        });
+    }, scrollTime * 1000);
+
+    // refresh page on interval to get mongo updates
+    setInterval(function() {
+        window.location.reload(1);
+    }, refreshTime * 60000);
+    
+    // setup layout to fit screen & number of projects
+    function setupLayoutToFillScreen() {
+      $(".container").css("height", $(window).height() + "px");
+      $(".project").css("height", $(window).height()-40 + "px");
+      $("#dotContainer").css("width", numProjects * 26);
+    }
+    
+    function projectClicked(widget){  
+      currentProject = widget.children[4].innerHTML;
+      projectMap = <%= $projectMap.to_json %>;
+      currentProjectData = projectMap[currentProject]['repo'];
+      currentCIData = projectMap[currentProject]['ci'];
+      localStorage.setItem("currentProjectData", JSON.stringify(currentProjectData));
+      localStorage.setItem("currentCIData", JSON.stringify(currentCIData));
+      window.location = 'http://localhost:9292/project_tasks';
+    }
+    
+    function dotClicked(dot){  
+      currProjectIndex = document.getElementsByClassName("activeDot")[0].getAttribute("id").split("dot")[1];
+      var previousIndex = currProjectIndex;
+      currProjectIndex = dot.getAttribute("id").split("dot")[1];
+ 
+      $('#project'+previousIndex).fadeOut(500, function() {
+        $('#project'+currProjectIndex).fadeIn(500);
+        $("#dot"+previousIndex).removeClass("activeDot");
+        $("#dot"+currProjectIndex).addClass("activeDot");
+      });
+    }
+  
+  </script>
+</head>
+<body>
+
+  <!-- project indicator -->
+  <div id="dotBigContainer">
+    <div id="dotContainer">
+      <div class="dot activeDot" id="dot0"></div>
+        <% for i in 1..projects.count-1 %>
+          <div class="dot" id="dot<%= i %>" onclick="dotClicked(this);"></div>
+        <% end %>
+    </div>
+  </div>
+  
+  <div class="container">
+    <% for project in projects %>
+      <div class="project" id="project<%= projects.index(project) %>">
+        <div class="gridster ready" >
+          <ul style="height: 370px; width: 930px; position: relative;">
+            <li data-row="1" data-col="1" data-sizex="2" data-sizey="1">
+              <header class="fa fa-arrows drag-handle"></header>
+              <div data-id="title_<%= projects.index(project) %>" style="background-color:#000000;" data-view="Text" onclick="projectClicked(this);"></div>
+            </li>
+
+            <% if project.key?('tasks') %>
+              <% for task in project['tasks'] %>
+                <li class="task gs-w" data-row="1" data-col="3" data-sizex="2" data-sizey="1">
+                  <header class="fa fa-arrows drag-handle"></header>
+                  <div data-id="task_widget" data-view="Text" data-title="<%= task[:title] %>" data-text="<%= task[:status] %>"></div>
+                </li>
+              <% end %>
+            <% end %>
+
+            <% if project.key?('ci') %>
+              <% for job in project['ci'] %>
+                <li class="ci gs-w" data-row="2" data-col="1" data-sizex="1" data-sizey="1">
+                  <header class="fa fa-arrows drag-handle"></header>
+                  <div data-id="jenkins-widget" data-view="JenkinsBuild" data-description="<%= project[:proj_name] %>" data-lastBuilt="<%= job[:lastResult] %>" data-min="0" data-max="100" data-value="<%= job[:value] %>"</div>
+                </li>
+              <% end %>
+            <% end %>
+          </ul>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</body>
