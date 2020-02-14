@@ -6,10 +6,10 @@ require 'time'
 
 def main
 	init 
-	buildProjectHash
+	buildProjectHashTest
 	
 	SCHEDULER.every '5m', :first_in => '3m' do		
-		buildProjectHash
+		#buildProjectHash
 	end
 end
 
@@ -121,7 +121,7 @@ def init
 	$github_auth = {
 		'client_uri': 'https://indy-github.milliman.com/api/v3',
 		'username': config['github_uname'],
-		'token': config['github_password'],
+		'token': config['github_pat'],
 		'preview_param': 'application/vnd.github.inertia-preview+json'
 	}
 	
